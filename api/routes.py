@@ -12,6 +12,7 @@
 
 import os
 import boto3
+import json  # Added to decode the progress JSON data
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from cache.redis import redis_client
@@ -57,6 +58,32 @@ def check_rate_limit(key: str, limit: int, window: int):
         redis_client.expire(key, window)
     if count > limit:
         return rate_limit_response(window)
+
+
+# ---------------------------------------------------------
+# NEW CODE: Endpoint to return active transfer progress
+# ---------------------------------------------------------
+@router.get("/api/progress")
+async def get_active_progress():
+    active_tasks = []
+    # Find all keys matching the task pattern
+    keys = redis_client.keys("task_progress_*")
+    
+    for key in keys:
+        value = redis_client.get(key)
+        if value:
+            try:
+                task_data = json.loads(value)
+                active_tasks.append(task_data)
+                
+                # Automatically clear completed items from list after reading them once
+                if task_data.get("status") == "Completed":
+                    redis_client.delete(key)
+            except Exception:
+                continue
+                
+    return {"tasks": active_tasks}
+# ---------------------------------------------------------
 
 
 @router.get("/file/{file_id}")

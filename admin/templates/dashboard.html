@@ -13,163 +13,216 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -->
 
 <!DOCTYPE html>
-<html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
 <head>
-  <title>Admin Dashboard</title>
-  <link rel="stylesheet" href="/static/css/admin.css?v=1">
-  <script src="/static/js/admin.js?v=1" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Terminal Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
+        }
+      }
+    }
+  </script>
 </head>
 
-<body>
+<body class="min-h-full font-sans antialiased flex flex-col selection:bg-emerald-500/30 selection:text-emerald-400">
 
-<header class="admin-header">
-  <h1>📊 Admin Dashboard</h1>
-
-  <nav class="header-actions">
-    <a href="/admin" class="nav-link">Dashboard</a>
-    <a href="/admin/settings" class="nav-link">Settings</a>
-
-    <button id="theme-toggle" type="button">🌙</button>
-
-    <form method="post" action="/admin/logout">
-      <button class="logout">Logout</button>
-    </form>
-  </nav>
-</header>
-
-<main>
-
-<section class="dashboard">
-  <div class="card"><h3>Total Files</h3><p>{{ stats.total_files }}</p></div>
-  <div class="card"><h3>Total Downloads</h3><p>{{ stats.total_downloads }}</p></div>
-  <div class="card"><h3>Active Files</h3><p>{{ stats.active_files }}</p></div>
-</section>
-
-<div id="active-transfers-card" class="table-card" style="display: none; margin-bottom: 30px;">
-  <div class="table-header">⚡ Active Transfers</div>
-  <div id="transfers-container" style="padding: 20px;">
-    </div>
-</div>
-<form method="get" class="search-bar">
-  <input name="q" value="{{ query }}" placeholder="Search files...">
-</form>
-
-<div class="table-card">
-  <div class="table-header">All Files</div>
-  <table>
-    <tr>
-      <th>Name</th>
-      <th class="right">Downloads</th>
-      <th class="right">Status</th>
-      <th class="right">Actions</th>
-    </tr>
-
-    {% for f in files %}
-    <tr>
-      <td>{{ f.name }}</td>
-      <td class="right">{{ f.downloads }}</td>
-      <td class="right">
-        {% if f.expires_at %}
-          <span class="badge orange">Expiring</span>
-        {% else %}
-          <span class="badge green">Active</span>
-        {% endif %}
-      </td>
-      <td class="right">
-        <form method="post" action="/admin/file/{{ f.file_id }}/disable" style="display:inline">
-          <button class="action-btn action-disable">Disable</button>
-        </form>
-        <form method="post" action="/admin/file/{{ f.file_id }}/delete" style="display:inline">
-          <button class="action-btn action-delete"
-            onclick="return confirm('Delete this file permanently?')">
-            Delete
+  <header class="border-b border-slate-900 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between max-w-7xl mx-auto">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">📊</span>
+        <h1 class="text-base font-semibold tracking-wider uppercase text-slate-200">System Terminal</h1>
+      </div>
+      
+      <nav class="flex items-center gap-6">
+        <a href="/admin" class="text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 py-5 transition-colors">Dashboard</a>
+        <a href="/admin/settings" class="text-sm font-medium text-slate-400 hover:text-slate-200 py-5 transition-colors">Settings</a>
+        
+        <form method="post" action="/admin/logout" class="inline">
+          <button class="text-xs font-semibold bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-400 px-3 py-1.5 rounded-md border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer">
+            Disconnect
           </button>
         </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
+      </nav>
+    </div>
+  </header>
 
-<div class="dashboard" style="margin-top:30px">
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
+        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Total Items Cached</p>
+        <p class="mt-2 text-3xl font-light tracking-tight text-slate-100">{{ stats.total_files }}</p>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
+        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Data Streams Served</p>
+        <p class="mt-2 text-3xl font-light tracking-tight text-slate-100">{{ stats.total_downloads }}</p>
+      </div>
+      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
+        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Active Direct Links</p>
+        <p class="mt-2 text-3xl font-light tracking-tight text-emerald-400 font-mono">{{ stats.active_files }}</p>
+      </div>
+    </section>
 
-  <div class="card">
-    <h3>🔥 Top Downloads</h3>
-    <ul>
-      {% for f in top_files %}
-        <li>{{ f.name }} — {{ f.downloads }}</li>
-      {% endfor %}
-    </ul>
-  </div>
+    <div id="active-transfers-card" class="bg-slate-900/40 border border-amber-500/20 rounded-xl overflow-hidden shadow-sm hidden">
+      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3 flex items-center gap-2">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+        </span>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-amber-400">Live Network Pipes</h2>
+      </div>
+      <div id="transfers-container" class="p-4 space-y-3 bg-slate-900/20">
+        </div>
+    </div>
 
-  <div class="card">
-    <h3>🕒 Recent Uploads</h3>
-    <ul>
-      {% for f in recent_files %}
-        <li>{{ f.name }}</li>
-      {% endfor %}
-    </ul>
-  </div>
+    <form method="get" class="w-full">
+      <div class="relative">
+        <input name="q" value="{{ query }}" placeholder="Filter indices by filename..." 
+               class="w-full bg-slate-900/50 border border-slate-900 rounded-xl px-4 py-3 text-sm placeholder:text-slate-600 focus:outline-none focus:border-slate-800 text-slate-200 transition-all font-mono">
+      </div>
+    </form>
 
-  <div class="card">
-    <h3>⏳ Expiring Soon</h3>
-    <ul>
-      {% for f in expiring_files %}
-        <li>{{ f.name }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-
-</div>
-
-</main>
-
-<script>
-  async function updateProgress() {
-    try {
-      const response = await fetch('/api/progress');
-      if (!response.ok) return;
+    <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
+      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">File Directory Matrix</h2>
+      </div>
       
-      const data = await response.json();
-      const container = document.getElementById('transfers-container');
-      const card = document.getElementById('active-transfers-card');
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="border-b border-slate-900 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-900/20">
+              <th class="px-4 py-3">Filename Index</th>
+              <th class="px-4 py-3 font-mono">File ID</th>
+              <th class="px-4 py-3 text-right">Data Footprint</th>
+              <th class="px-4 py-3 text-right">Hits</th>
+              <th class="px-4 py-3 text-center">Lifecycle Status</th>
+              <th class="px-4 py-3 text-right">System Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-900 font-mono text-xs">
+            {% for f in files %}
+            <tr class="hover:bg-slate-900/30 transition-colors text-slate-300">
+              <td class="px-4 py-3.5 max-w-xs font-sans font-medium text-slate-200 truncate" title="{{ f.name }}">{{ f.name }}</td>
+              <td class="px-4 py-3.5 text-slate-500">{{ f.file_id }}</td>
+              <td class="px-4 py-3.5 text-right text-slate-400">
+                {% if f.file_size %}
+                  {{ (f.file_size / 1024 / 1024) | round(2) }} MB
+                {% else %}
+                  --
+                {% endif %}
+              </td>
+              <td class="px-4 py-3.5 text-right font-semibold text-slate-400">{{ f.downloads }}</td>
+              <td class="px-4 py-3.5 text-center">
+                {% if f.expires_at %}
+                  <span class="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-400 ring-1 ring-inset ring-amber-500/20">Volatile</span>
+                {% else %}
+                  <span class="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-2xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Persistent</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3.5 text-right space-x-1 whitespace-nowrap">
+                <form method="post" action="/admin/file/{{ f.file_id }}/disable" class="inline">
+                  <button class="bg-slate-800 hover:bg-amber-950 text-slate-400 hover:text-amber-400 px-2.5 py-1 rounded border border-slate-700 hover:border-amber-900/50 transition-all cursor-pointer">Freeze</button>
+                </form>
+                <form method="post" action="/admin/file/{{ f.file_id }}/delete" class="inline">
+                  <button class="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer"
+                          onclick="return confirm('Purge object data registry index permanently?')">Purge</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-1 gap-6 md:grid-cols-3">
       
-      // Hide card completely if no active downloads are running
-      if (!data.tasks || data.tasks.length === 0) {
-        card.style.display = 'none';
-        return;
-      }
-      
-      // Show card if downloads exist
-      card.style.display = 'block';
-      container.innerHTML = '';
-      
-      // Inject progress bar items dynamically
-      data.tasks.forEach(task => {
-        const taskEl = document.createElement('div');
-        taskEl.style.marginBottom = '20px';
+      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
+        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">🔥 High Footprint Links</h3>
+        </div>
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+          {% for f in top_files %}
+            <li class="pt-2 first:pt-0 flex justify-between gap-4">
+              <span class="truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</span>
+              <span class="text-slate-500 shrink-0 font-semibold">{{ f.downloads }} hits</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
+        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">🕒 Recent Registries</h3>
+        </div>
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+          {% for f in recent_files %}
+            <li class="pt-2 first:pt-0 block truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
+        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">⏳ Volatile Timeouts</h3>
+        </div>
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+          {% for f in expiring_files %}
+            <li class="pt-2 first:pt-0 block truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    async function updateProgress() {
+      try {
+        const response = await fetch('/api/progress');
+        if (!response.ok) return;
         
-        taskEl.innerHTML = `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
-            <span style="font-family: monospace; font-weight: bold;">Task: ${task.file_id}</span>
-            <span><strong>${task.status} (${task.progress}%)</strong></span>
-          </div>
-          <div style="background: rgba(128,128,128,0.2); border-radius: 6px; height: 12px; width: 100%; overflow: hidden;">
-            <div style="background: #22c55e; height: 100%; width: ${task.progress}%; transition: width 0.3s ease-in-out;"></div>
-          </div>
-        `;
-        container.appendChild(taskEl);
-      });
-    } catch (err) {
-      console.error('Failed to poll progress API:', err);
+        const data = await response.json();
+        const container = document.getElementById('transfers-container');
+        const card = document.getElementById('active-transfers-card');
+        
+        if (!data.tasks || data.tasks.length === 0) {
+          card.classList.add('hidden');
+          return;
+        }
+        
+        card.classList.remove('hidden');
+        container.innerHTML = '';
+        
+        data.tasks.forEach(task => {
+          const taskEl = document.createElement('div');
+          taskEl.className = "space-y-1.5 bg-slate-950/40 p-3 rounded-lg border border-slate-900";
+          
+          taskEl.innerHTML = `
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-400 font-semibold">Pipe ID: ${task.file_id}</span>
+              <span class="text-amber-400 font-bold">${task.status} (${task.progress}%)</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-full h-2.5 w-full overflow-hidden">
+              <div class="bg-amber-500 h-full w-[${task.progress}%] rounded-full transition-all duration-300 ease-in-out" style="width: ${task.progress}%"></div>
+            </div>
+          `;
+          container.appendChild(taskEl);
+        });
+      } catch (err) {
+        console.error('Telemetry buffer tracking error:', err);
+      }
     }
-  }
 
-  // Poll the API route every 2 seconds
-  setInterval(updateProgress, 2000);
-  
-  // Initial manual invocation when the dashboard loads
-  updateProgress();
-</script>
+    setInterval(updateProgress, 2000);
+    updateProgress();
+  </script>
+
 </body>
 </html>

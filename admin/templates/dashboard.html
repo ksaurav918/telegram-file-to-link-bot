@@ -45,6 +45,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   <div class="card"><h3>Active Files</h3><p>{{ stats.active_files }}</p></div>
 </section>
 
+<div id="active-transfers-card" class="table-card" style="display: none; margin-bottom: 30px;">
+  <div class="table-header">⚡ Active Transfers</div>
+  <div id="transfers-container" style="padding: 20px;">
+    </div>
+</div>
 <form method="get" class="search-bar">
   <input name="q" value="{{ query }}" placeholder="Search files...">
 </form>
@@ -119,5 +124,52 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 </main>
 
+<script>
+  async function updateProgress() {
+    try {
+      const response = await fetch('/api/progress');
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      const container = document.getElementById('transfers-container');
+      const card = document.getElementById('active-transfers-card');
+      
+      // Hide card completely if no active downloads are running
+      if (!data.tasks || data.tasks.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      
+      // Show card if downloads exist
+      card.style.display = 'block';
+      container.innerHTML = '';
+      
+      // Inject progress bar items dynamically
+      data.tasks.forEach(task => {
+        const taskEl = document.createElement('div');
+        taskEl.style.marginBottom = '20px';
+        
+        taskEl.innerHTML = `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+            <span style="font-family: monospace; font-weight: bold;">Task: ${task.file_id}</span>
+            <span><strong>${task.status} (${task.progress}%)</strong></span>
+          </div>
+          <div style="background: rgba(128,128,128,0.2); border-radius: 6px; height: 12px; width: 100%; overflow: hidden;">
+            <div style="background: #22c55e; height: 100%; width: ${task.progress}%; transition: width 0.3s ease-in-out;"></div>
+          </div>
+        `;
+        container.appendChild(taskEl);
+      });
+    } catch (err) {
+      console.error('Failed to poll progress API:', err);
+    }
+  }
+
+  // Poll the API route every 2 seconds
+  setInterval(updateProgress, 2000);
+  
+  // Initial manual invocation when the dashboard loads
+  updateProgress();
+</script>
 </body>
 </html>

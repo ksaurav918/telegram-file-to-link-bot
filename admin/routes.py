@@ -115,8 +115,9 @@ async def dashboard(
         FROM files
     """)
 
+    # FIXED: Added file_size to the SELECT array so the frontend can calculate MBs
     files = await Database.pool.fetch("""
-        SELECT file_id, name, downloads, expires_at
+        SELECT file_id, name, file_size, downloads, expires_at
         FROM files
         WHERE name ILIKE $1
         ORDER BY downloads DESC
@@ -137,12 +138,12 @@ async def dashboard(
         LIMIT 5
     """)
 
+    # FIXED: Changed filters so that frozen/expired files still show up in this block
     expiring_files = await Database.pool.fetch("""
         SELECT name, expires_at
         FROM files
         WHERE expires_at IS NOT NULL
-          AND expires_at > NOW()
-        ORDER BY expires_at ASC
+        ORDER BY expires_at DESC
         LIMIT 5
     """)
 
@@ -188,6 +189,7 @@ async def disable_file(file_id: str, auth=Depends(admin_required)):
     if isinstance(auth, RedirectResponse):
         return auth
 
+    # FIXED: Re-enabled standard timestamp allocation logic
     await Database.pool.execute(
         "UPDATE files SET expires_at = NOW() WHERE file_id=$1",
         file_id,
@@ -195,4 +197,16 @@ async def disable_file(file_id: str, auth=Depends(admin_required)):
 
     return RedirectResponse("/admin/", status_code=303)
 
+# NEW ENDPOINT: Clean handling for the "Restore" button action
+@router.post("/file/{file_id}/enable")
+async def enable_file(file_id: str, auth=Depends(admin_required)):
+    if isinstance(auth, RedirectResponse):
+        return auth
 
+    # Strips the expiration block completely, making it "Persistent" again
+    await Database.pool.execute(
+        "UPDATE files SET expires_at = NULL WHERE file_id=$1",
+        file_id,
+    )
+
+    return RedirectResponse("/admin/", status_code=303)

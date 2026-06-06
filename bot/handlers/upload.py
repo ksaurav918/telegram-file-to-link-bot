@@ -13,6 +13,7 @@
 import asyncio
 import uuid
 import os
+import shutil
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -118,7 +119,7 @@ async def process_upload(message, status):
 
     if STORAGE_BACKEND == "local":
         internal_path = os.path.join(UPLOAD_DIR, f"{file_id}{ext}")
-        os.replace(temp_path, internal_path)
+        shutil.move(temp_path, internal_path)
         stored_path = internal_path
     else:
         key = f"{file_id}{ext}"

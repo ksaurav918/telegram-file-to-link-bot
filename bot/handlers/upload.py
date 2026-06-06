@@ -104,27 +104,58 @@ async def process_upload(message, status):
     await status.edit("⬇️ Downloading…")
     
     # ---------------------------------------------------------
-    # NEW CODE: Generate ID early and track progress
+    # Generate ID early and track progress (Web + Telegram)
     # ---------------------------------------------------------
     file_id = uuid.uuid4().hex[:12]
     last_update_time = time.time()
+    last_tg_percentage = 0  
 
     async def progress_tracker(current, total):
-        nonlocal last_update_time
+        nonlocal last_update_time, last_tg_percentage
         now = time.time()
-        # Update Redis every 1 second or when 100% complete
+        percentage = round((current / total) * 100, 2) if total else 0
+        
+        # 1. Update Redis for the Web Dashboard (Every 1 second)
         if now - last_update_time > 1.0 or current == total:
-            percentage = round((current / total) * 100, 2) if total else 0
             progress_data = {
                 "file_id": file_id,
                 "progress": percentage,
                 "status": "Downloading"
             }
-            # Save to Redis with a 1-hour expiration
             redis_client.setex(f"task_progress_{file_id}", 3600, json.dumps(progress_data))
             last_update_time = now
 
-    # Pass the progress tracker into Pyrogram's download method
+        # 2. Update Telegram Chat (Dynamic steps based on file size)
+        if total:
+            total_mb = total / (1024 * 1024)
+            
+            if total_mb >= 500:
+                step = 10
+            elif total_mb >= 100:
+                step = 25
+            elif total_mb >= 10:
+                step = 50
+            else:
+                step = 200  # Keeps small files fast and quiet in chat
+
+            if percentage - last_tg_percentage >= step and current != total:
+                try:
+                    # Create the visual text bar
+                    filled = int(percentage / 10)
+                    bar = "█" * filled + "░" * (10 - filled)
+                    
+                    current_mb = current / (1024 * 1024)
+                    
+                    await status.edit(
+                        f"⬇️ **Downloading...**\n"
+                        f"`[{bar}] {int(percentage)}%`\n"
+                        f"📦 `{current_mb:.1f} MB / {total_mb:.1f} MB`"
+                    )
+                    last_tg_percentage = percentage
+                except Exception:
+                    pass
+
+    # Pass the dynamic progress tracker into Pyrogram's download method
     temp_path = await message.download(progress=progress_tracker)
     # ---------------------------------------------------------
 
@@ -192,15 +223,12 @@ async def process_upload(message, status):
         }
     )
 
-    # ---------------------------------------------------------
-    # NEW CODE: Mark task as 100% completed in Redis
-    # ---------------------------------------------------------
+    # Mark task as 100% completed in Redis so the dashboard clears it
     redis_client.setex(
         f"task_progress_{file_id}", 
         3600, 
         json.dumps({"file_id": file_id, "progress": 100.0, "status": "Completed"})
     )
-    # ---------------------------------------------------------
 
     size_mb = file_size / (1024 * 1024)
 

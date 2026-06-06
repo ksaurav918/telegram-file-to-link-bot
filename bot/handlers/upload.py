@@ -15,6 +15,8 @@ import uuid
 import os
 import shutil
 import re
+import time  # Added for progress throttling
+import json  # Added to format Redis data
 from datetime import datetime, timedelta, timezone
 
 import boto3
@@ -74,6 +76,7 @@ async def upload_handler(_, message):
     async with upload_semaphore:
         await process_upload(message, status)
 
+
 async def process_upload(message, status):
     media = (
         message.document
@@ -99,7 +102,31 @@ async def process_upload(message, status):
             return
 
     await status.edit("⬇️ Downloading…")
-    temp_path = await message.download()
+    
+    # ---------------------------------------------------------
+    # NEW CODE: Generate ID early and track progress
+    # ---------------------------------------------------------
+    file_id = uuid.uuid4().hex[:12]
+    last_update_time = time.time()
+
+    async def progress_tracker(current, total):
+        nonlocal last_update_time
+        now = time.time()
+        # Update Redis every 1 second or when 100% complete
+        if now - last_update_time > 1.0 or current == total:
+            percentage = round((current / total) * 100, 2) if total else 0
+            progress_data = {
+                "file_id": file_id,
+                "progress": percentage,
+                "status": "Downloading"
+            }
+            # Save to Redis with a 1-hour expiration
+            redis_client.setex(f"task_progress_{file_id}", 3600, json.dumps(progress_data))
+            last_update_time = now
+
+    # Pass the progress tracker into Pyrogram's download method
+    temp_path = await message.download(progress=progress_tracker)
+    # ---------------------------------------------------------
 
     if not temp_path:
         await status.edit("❌ Download failed")
@@ -113,13 +140,11 @@ async def process_upload(message, status):
         original_name = f"{uuid.uuid4().hex}.bin"
 
     file_size = file_size or os.path.getsize(temp_path)
-
-    file_id = uuid.uuid4().hex[:12]
     ext = os.path.splitext(original_name)[1]
 
     if STORAGE_BACKEND == "local":
         internal_path = os.path.join(UPLOAD_DIR, f"{file_id}{ext}")
-        shutil.move(temp_path, internal_path)
+        shutil.move(temp_path, internal_path) # Uses the shutil fix
         stored_path = internal_path
     else:
         key = f"{file_id}{ext}"
@@ -166,6 +191,16 @@ async def process_upload(message, status):
             "expires_at": int(expires_at.timestamp()) if expires_at else 0,
         }
     )
+
+    # ---------------------------------------------------------
+    # NEW CODE: Mark task as 100% completed in Redis
+    # ---------------------------------------------------------
+    redis_client.setex(
+        f"task_progress_{file_id}", 
+        3600, 
+        json.dumps({"file_id": file_id, "progress": 100.0, "status": "Completed"})
+    )
+    # ---------------------------------------------------------
 
     size_mb = file_size / (1024 * 1024)
 

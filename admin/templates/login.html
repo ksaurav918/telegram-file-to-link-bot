@@ -13,25 +13,76 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-950">
 <head>
-  <title>Admin Login</title>
-  <link rel="stylesheet" href="/static/css/admin.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Access - Terminal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
+        }
+      }
+    }
+  </script>
 </head>
 
-<body class="centered auth-page">
-  <div class="card auth-card">
-    <h2>🔐 Admin Login</h2>
+<body class="h-full font-sans antialiased flex items-center justify-center p-6 selection:bg-emerald-500/30 selection:text-emerald-400">
 
-    {% if error %}
-      <div class="alert alert-error">{{ error }}</div>
-    {% endif %}
+  <div class="w-full max-w-sm">
+    <div class="flex justify-center mb-8">
+        <div class="h-16 w-16 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-3xl shadow-2xl">
+            🔐
+        </div>
+    </div>
 
-    <form method="post">
-      <input type="email" name="email" placeholder="Email" required>
-      <input type="password" name="password" placeholder="Password" required>
-      <button type="submit" class="action-btn">Login</button>
-    </form>
+    <div class="bg-slate-900/40 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
+      <div class="border-b border-slate-900 bg-slate-900/80 px-6 py-5 text-center">
+        <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-200">Access Terminal</h2>
+        <p class="mt-1 text-xs text-slate-500">Identity verification required for Matrix access.</p>
+      </div>
+      
+      <div class="p-6">
+        {% if error %}
+          <div class="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-center">
+            <p class="text-xs font-bold uppercase tracking-tight text-rose-400">{{ error }}</p>
+          </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1">Credential Index (Email)</label>
+            <input type="email" name="email" placeholder="admin@system.local" required 
+                   class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500/50 transition-all font-mono">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1">Access Key (Password)</label>
+            <input type="password" name="password" placeholder="••••••••" required 
+                   class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500/50 transition-all font-mono">
+          </div>
+
+          <button type="submit" 
+                  class="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98] cursor-pointer">
+            Initialize Session
+          </button>
+        </form>
+      </div>
+
+      <div class="px-6 py-4 bg-slate-900/20 border-t border-slate-900 text-center">
+        <p class="text-[10px] text-slate-600 uppercase tracking-[0.2em] font-medium">System Core v2.0.5</p>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+        <a href="/" class="text-xs text-slate-600 hover:text-slate-400 transition-colors uppercase tracking-widest font-semibold">
+            ← Return to Interface
+        </a>
+    </div>
   </div>
+
 </body>
 </html>

@@ -104,14 +104,19 @@ async def get_file(file_id: str, request: Request):
 
     if not meta:
         row = await Database.pool.fetchrow(
-            "SELECT path, name, downloads FROM files WHERE file_id=$1",
+            "SELECT path, name, downloads, disabled FROM files WHERE file_id=$1",
             file_id,
         )
         if not row:
             raise HTTPException(404, "File not found")
 
         meta = dict(row)
+        # asyncpg returns Python bool for the `disabled` column; normalize for Redis
+        meta["disabled"] = "1" if meta.get("disabled") else "0"
         redis_client.hset(key, mapping=meta)
+
+    if str(meta.get("disabled", "0")) in ("1", "True", "true"):
+        raise HTTPException(403, "File is frozen by the administrator")
 
     download_key = f"downloaded:{ip}:{file_id}"
     if not redis_client.exists(download_key):

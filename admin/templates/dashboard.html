@@ -119,20 +119,44 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
               </td>
               <td class="px-4 py-3.5 text-right font-semibold text-slate-400">{{ f.downloads }}</td>
               <td class="px-4 py-3.5 text-center">
-                {% if f.expires_at %}
-                  <span class="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-400 ring-1 ring-inset ring-amber-500/20">Volatile</span>
+                {% if f.disabled %}
+                  <span class="inline-flex items-center rounded-md bg-sky-500/10 px-2 py-1 text-2xs font-medium text-sky-400 ring-1 ring-inset ring-sky-500/20">Frozen</span>
+                {% elif f.expires_at %}
+                  <span class="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-400 ring-1 ring-inset ring-amber-500/20" title="Expires {{ f.expires_at }}">Volatile</span>
                 {% else %}
                   <span class="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-2xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Persistent</span>
                 {% endif %}
               </td>
-              <td class="px-4 py-3.5 text-right space-x-1 whitespace-nowrap">
-                <form method="post" action="/admin/file/{{ f.file_id }}/disable" class="inline">
-                  <button class="bg-slate-800 hover:bg-amber-950 text-slate-400 hover:text-amber-400 px-2.5 py-1 rounded border border-slate-700 hover:border-amber-900/50 transition-all cursor-pointer">Freeze</button>
-                </form>
-                <form method="post" action="/admin/file/{{ f.file_id }}/delete" class="inline">
-                  <button class="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer"
-                          onclick="return confirm('Purge object data registry index permanently?')">Purge</button>
-                </form>
+              <td class="px-4 py-3.5 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1 flex-wrap">
+                  <form method="post" action="/admin/file/{{ f.file_id }}/expiry" class="inline-flex items-center gap-1" data-testid="form-set-expiry-{{ f.file_id }}">
+                    <input type="text" name="ttl" placeholder="30 / 2h / 1d / 0"
+                           class="w-28 bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-2xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                           data-testid="input-ttl-{{ f.file_id }}">
+                    <button class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-2.5 py-1 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer"
+                            data-testid="btn-set-expiry-{{ f.file_id }}">Set TTL</button>
+                  </form>
+
+                  {% if f.disabled or f.expires_at %}
+                    <form method="post" action="/admin/file/{{ f.file_id }}/enable" class="inline">
+                      <button class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-2.5 py-1 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer"
+                              data-testid="btn-rescue-{{ f.file_id }}">Rescue</button>
+                    </form>
+                  {% endif %}
+
+                  {% if not f.disabled %}
+                    <form method="post" action="/admin/file/{{ f.file_id }}/disable" class="inline">
+                      <button class="bg-slate-800 hover:bg-amber-950 text-slate-400 hover:text-amber-400 px-2.5 py-1 rounded border border-slate-700 hover:border-amber-900/50 transition-all cursor-pointer"
+                              data-testid="btn-freeze-{{ f.file_id }}">Freeze</button>
+                    </form>
+                  {% endif %}
+
+                  <form method="post" action="/admin/file/{{ f.file_id }}/delete" class="inline">
+                    <button class="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer"
+                            onclick="return confirm('Purge object data registry index permanently?')"
+                            data-testid="btn-purge-{{ f.file_id }}">Purge</button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% endfor %}

@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS files (
 
 CREATE INDEX IF NOT EXISTS idx_files_expires
 ON files (expires_at);
+
+-- Idempotent migration: add `disabled` flag for dashboard freeze/rescue
+ALTER TABLE files
+ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT FALSE;
 """
 
 CREATE_ADMINS_TABLE_SQL = """

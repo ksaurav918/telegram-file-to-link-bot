@@ -37,12 +37,16 @@ async def cleanup_expired_files():
     while True:
         try:
             async with Database.pool.acquire() as conn:
+                # Atomic: take ownership of the rows we are about to clean up.
+                # Returning the rows first guarantees that we only remove the
+                # underlying file/cache for rows we actually deleted, with no
+                # race window against /enable, /disable or /expiry updates.
                 rows = await conn.fetch(
                     """
-                    SELECT file_id, path
-                    FROM files
+                    DELETE FROM files
                     WHERE expires_at IS NOT NULL
                       AND expires_at < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+                    RETURNING file_id, path
                     """
                 )
 
@@ -67,15 +71,6 @@ async def cleanup_expired_files():
 
                     # Clear Redis cache
                     redis_client.delete(f"file:{file_id}")
-
-                if rows:
-                    await conn.execute(
-                        """
-                        DELETE FROM files
-                        WHERE expires_at IS NOT NULL
-                          AND expires_at < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
-                        """
-                    )
 
         except Exception as e:
             print("❌ Cleanup error:", e)

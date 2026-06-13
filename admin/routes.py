@@ -179,13 +179,24 @@ async def dashboard(
     """)
 
     # Order by created_at so newly uploaded files always appear, regardless of hits
-    files = await Database.pool.fetch("""
-        SELECT file_id, name, file_size, downloads, expires_at, disabled, created_at
+    rows = await Database.pool.fetch("""
+        SELECT file_id, name, path, file_size, downloads, expires_at, disabled, created_at
         FROM files
         WHERE name ILIKE $1
         ORDER BY created_at DESC
         LIMIT 100
     """, f"%{q or ''}%")
+
+    # Detect orphaned rows (physical file gone from disk).
+    # Only meaningful for the local backend; for S3 we trust the bucket.
+    files = []
+    for r in rows:
+        item = dict(r)
+        if STORAGE_BACKEND == "local":
+            item["missing"] = not (r["path"] and os.path.exists(r["path"]))
+        else:
+            item["missing"] = False
+        files.append(item)
 
     top_files = await Database.pool.fetch("""
         SELECT name, downloads

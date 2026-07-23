@@ -12,6 +12,7 @@
 
 import os
 import re
+import shutil
 from datetime import datetime, timedelta, timezone
 
 import boto3
@@ -33,6 +34,9 @@ from config import (
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="admin/templates")
+
+# Base directory exports are allowed to write into. Bind-mount this in compose.
+EXPORT_BASE_DIR = os.environ.get("EXPORT_BASE_DIR", "/app/exports")
 
 # S3 client for delete operations on S3-backed installs
 _s3 = None
@@ -56,6 +60,22 @@ def _remove_physical_file(path: str | None) -> None:
             _s3.delete_object(Bucket=AWS_S3_BUCKET_NAME, Key=path)
     except Exception as e:
         print(f"⚠️ Failed to remove physical file {path}: {e}")
+
+
+def _resolve_export_target(subfolder: str | None) -> str:
+    """
+    Resolve a user-supplied subfolder name to a real path *inside* EXPORT_BASE_DIR,
+    refusing anything that tries to escape it (.., absolute paths, etc.).
+    """
+    subfolder = (subfolder or "").strip().strip("/")
+    base = os.path.abspath(EXPORT_BASE_DIR)
+    target = os.path.abspath(os.path.join(base, subfolder)) if subfolder else base
+
+    if not (target == base or target.startswith(base + os.sep)):
+        raise ValueError("Invalid target folder")
+
+    os.makedirs(target, exist_ok=True)
+    return target
 
 
 def _parse_ttl(value: str) -> int | None:
@@ -334,3 +354,59 @@ async def set_file_expiry(
     redis_client.delete(f"file:{file_id}")
 
     return RedirectResponse("/admin/", status_code=303)
+
+
+@router.post("/export")
+async def export_files(
+    request: Request,
+    subfolder: str = Form(""),
+    mode: str = Form("copy"),  # "copy" or "move"
+    auth=Depends(admin_required),
+):
+    """
+    Export all files currently tracked in the DB from local disk storage
+    to a folder under EXPORT_BASE_DIR, using their *original* filenames.
+    """
+    if isinstance(auth, RedirectResponse):
+        return auth
+
+    if STORAGE_BACKEND != "local":
+        # Exporting only makes sense for local disk storage
+        return RedirectResponse("/admin/?error=export_local_only", status_code=303)
+
+    try:
+        target_dir = _resolve_export_target(subfolder)
+    except ValueError:
+        return RedirectResponse("/admin/?error=invalid_target", status_code=303)
+
+    rows = await Database.pool.fetch("SELECT path, name FROM files")
+
+    exported, skipped = 0, 0
+    for r in rows:
+        src_path = r["path"]
+        orig_name = r["name"]
+
+        if not src_path or not os.path.exists(src_path):
+            skipped += 1
+            continue
+
+        # Avoid clobbering same-named files by suffixing a short id from the source
+        dst_path = os.path.join(target_dir, os.path.basename(orig_name))
+        if os.path.exists(dst_path):
+            base, ext = os.path.splitext(os.path.basename(orig_name))
+            suffix = os.path.splitext(os.path.basename(src_path))[0][:8]
+            dst_path = os.path.join(target_dir, f"{base}__{suffix}{ext}")
+
+        try:
+            if mode == "move":
+                shutil.move(src_path, dst_path)
+            else:
+                shutil.copy2(src_path, dst_path)
+            exported += 1
+        except Exception as e:
+            print(f"⚠️ Export failed for {src_path}: {e}")
+            skipped += 1
+
+    return RedirectResponse(
+        f"/admin/?exported={exported}&skipped={skipped}", status_code=303
+    )

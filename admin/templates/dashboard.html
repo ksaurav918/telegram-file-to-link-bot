@@ -38,11 +38,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         <span class="text-xl">📊</span>
         <h1 class="text-base font-semibold tracking-wider uppercase text-slate-200">System Terminal</h1>
       </div>
-      
+
       <nav class="flex items-center gap-6">
         <a href="/admin" class="text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 py-5 transition-colors">Dashboard</a>
         <a href="/admin/settings" class="text-sm font-medium text-slate-400 hover:text-slate-200 py-5 transition-colors">Settings</a>
-        
+
         <form method="post" action="/admin/logout" class="inline">
           <button class="text-xs font-semibold bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-400 px-3 py-1.5 rounded-md border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer">
             Disconnect
@@ -53,7 +53,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   </header>
 
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-    
+
     <section class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
         <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Total Items Cached</p>
@@ -83,16 +83,49 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
     <form method="get" class="w-full">
       <div class="relative">
-        <input name="q" value="{{ query }}" placeholder="Filter indices by filename..." 
+        <input name="q" value="{{ query }}" placeholder="Filter indices by filename..."
                class="w-full bg-slate-900/50 border border-slate-900 rounded-xl px-4 py-3 text-sm placeholder:text-slate-600 focus:outline-none focus:border-slate-800 text-slate-200 transition-all font-mono">
       </div>
     </form>
 
     <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
       <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">📤 Export to Server Folder</h2>
+      </div>
+      <form method="post" action="/admin/export" class="p-4 flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-2xs uppercase tracking-wider text-slate-500">Subfolder (under export base)</label>
+          <input type="text" name="subfolder" placeholder="e.g. severance-season1"
+                 class="w-64 bg-slate-950/60 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-2xs uppercase tracking-wider text-slate-500">Mode</label>
+          <select name="mode" class="bg-slate-950/60 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono">
+            <option value="copy" selected>Copy (keep originals)</option>
+            <option value="move">Move (remove from bot)</option>
+          </select>
+        </div>
+        <button type="submit"
+                onclick="return confirm('Export all files to the chosen server folder?')"
+                class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-4 py-2 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer text-xs font-semibold">
+          Export All Files
+        </button>
+      </form>
+      {% if request.query_params.get('exported') %}
+        <p class="px-4 pb-3 text-xs font-mono text-emerald-400">
+          Exported {{ request.query_params.get('exported') }} file(s), skipped {{ request.query_params.get('skipped') }}.
+        </p>
+      {% endif %}
+      {% if request.query_params.get('error') %}
+        <p class="px-4 pb-3 text-xs font-mono text-rose-400">Export failed: {{ request.query_params.get('error') }}</p>
+      {% endif %}
+    </div>
+
+    <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
+      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
         <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">File Directory Matrix</h2>
       </div>
-      
+
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
@@ -176,7 +209,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     </div>
 
     <section class="grid grid-cols-1 gap-6 md:grid-cols-3">
-      
+
       <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
         <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
           <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">🔥 High Footprint Links</h3>
@@ -221,23 +254,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
       try {
         const response = await fetch('/api/progress');
         if (!response.ok) return;
-        
+
         const data = await response.json();
         const container = document.getElementById('transfers-container');
         const card = document.getElementById('active-transfers-card');
-        
+
         if (!data.tasks || data.tasks.length === 0) {
           card.classList.add('hidden');
           return;
         }
-        
+
         card.classList.remove('hidden');
         container.innerHTML = '';
-        
+
         data.tasks.forEach(task => {
           const taskEl = document.createElement('div');
           taskEl.className = "space-y-1.5 bg-slate-950/40 p-3 rounded-lg border border-slate-900";
-          
+
           taskEl.innerHTML = `
             <div class="flex justify-between items-center text-xs font-mono">
               <span class="text-slate-400 font-semibold">Pipe ID: ${task.file_id}</span>

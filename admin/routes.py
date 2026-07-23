@@ -361,11 +361,16 @@ async def export_files(
     request: Request,
     subfolder: str = Form(""),
     mode: str = Form("copy"),  # "copy" or "move"
+    file_ids: list[str] | None = Form(None),
     auth=Depends(admin_required),
 ):
     """
-    Export all files currently tracked in the DB from local disk storage
-    to a folder under EXPORT_BASE_DIR, using their *original* filenames.
+    Export files tracked in the DB from local disk storage to a folder
+    under EXPORT_BASE_DIR, using their *original* filenames.
+
+    If file_ids is provided (one or more checkboxes selected on the
+    dashboard), only those rows are exported. Otherwise every file is
+    exported, as before.
     """
     if isinstance(auth, RedirectResponse):
         return auth
@@ -379,7 +384,13 @@ async def export_files(
     except ValueError:
         return RedirectResponse("/admin/?error=invalid_target", status_code=303)
 
-    rows = await Database.pool.fetch("SELECT path, name FROM files")
+    if file_ids:
+        rows = await Database.pool.fetch(
+            "SELECT path, name FROM files WHERE file_id = ANY($1::text[])",
+            file_ids,
+        )
+    else:
+        rows = await Database.pool.fetch("SELECT path, name FROM files")
 
     exported, skipped = 0, 0
     for r in rows:
@@ -408,5 +419,6 @@ async def export_files(
             skipped += 1
 
     return RedirectResponse(
-        f"/admin/?exported={exported}&skipped={skipped}", status_code=303
+        f"/admin/?exported={exported}&skipped={skipped}",
+        status_code=303,
     )

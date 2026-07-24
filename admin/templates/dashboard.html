@@ -13,38 +13,72 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -->
 
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Terminal Dashboard</title>
+  <title>Relay Ops — Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
+          fontFamily: {
+            sans: ['Manrope', 'ui-sans-serif', 'system-ui'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            void: '#14121A',
+            panel: '#1E1B26',
+            raised: '#262230',
+            hairline: '#332E3F',
+            ink: '#EDEAF5',
+            dim: '#8B85A0',
+            amber: { DEFAULT: '#F2A93B', dim: 'rgba(242,169,59,0.12)' },
+            cyan: { DEFAULT: '#4FD6C4', dim: 'rgba(79,214,196,0.12)' },
+            rose: { DEFAULT: '#E85D75', dim: 'rgba(232,93,117,0.12)' },
+          },
         }
       }
     }
   </script>
+  <style>
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    }
+    .signal-line {
+      background-image: repeating-linear-gradient(90deg, #332E3F 0 6px, transparent 6px 12px);
+      height: 1px;
+    }
+    ::selection { background: rgba(79,214,196,0.25); color: #EDEAF5; }
+    input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+      outline: 2px solid #4FD6C4; outline-offset: 2px;
+    }
+  </style>
 </head>
 
-<body class="min-h-full font-sans antialiased flex flex-col selection:bg-emerald-500/30 selection:text-emerald-400">
+<body class="min-h-full h-full bg-void text-ink font-sans antialiased flex flex-col">
 
-  <header class="border-b border-slate-900 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 lg:px-8">
+  <header class="border-b border-hairline bg-panel/70 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 lg:px-8">
     <div class="flex h-16 items-center justify-between max-w-7xl mx-auto">
-      <div class="flex items-center gap-2">
-        <span class="text-xl">📊</span>
-        <h1 class="text-base font-semibold tracking-wider uppercase text-slate-200">System Terminal</h1>
+      <div class="flex items-center gap-3">
+        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-cyan-dim border border-cyan/30">
+          <span class="h-2 w-2 rounded-full bg-cyan"></span>
+        </span>
+        <div class="leading-tight">
+          <h1 class="text-sm font-bold tracking-tight text-ink">Relay Ops</h1>
+          <p class="text-[10px] uppercase tracking-[0.15em] text-dim">Admin Console</p>
+        </div>
       </div>
 
       <nav class="flex items-center gap-6">
-        <a href="/admin" class="text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 py-5 transition-colors">Dashboard</a>
-        <a href="/admin/settings" class="text-sm font-medium text-slate-400 hover:text-slate-200 py-5 transition-colors">Settings</a>
-
+        <a href="/admin" class="text-sm font-semibold text-cyan border-b-2 border-cyan py-5 transition-colors">Dashboard</a>
+        <a href="/admin/settings" class="text-sm font-medium text-dim hover:text-ink py-5 transition-colors">Settings</a>
         <form method="post" action="/admin/logout" class="inline">
-          <button class="text-xs font-semibold bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-400 px-3 py-1.5 rounded-md border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer">
+          <button class="text-xs font-semibold bg-raised hover:bg-rose-dim text-dim hover:text-rose px-3 py-1.5 rounded-md border border-hairline hover:border-rose/40 transition-all cursor-pointer">
             Disconnect
           </button>
         </form>
@@ -52,84 +86,99 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     </div>
   </header>
 
+  <!-- Signal strip: always-visible pulse, signature element. Idle = flatline, active = live pulses. -->
+  <div class="border-b border-hairline bg-panel/40 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto py-2.5 flex items-center gap-3">
+      <span id="signal-dot" class="relative flex h-2 w-2 shrink-0">
+        <span id="signal-ping" class="hidden animate-ping absolute inline-flex h-full w-full rounded-full bg-amber opacity-75"></span>
+        <span id="signal-core" class="relative inline-flex rounded-full h-2 w-2 bg-dim/40"></span>
+      </span>
+      <span id="signal-label" class="text-[11px] font-mono text-dim uppercase tracking-wider shrink-0">Idle — no active transfers</span>
+      <div class="signal-line flex-1"></div>
+    </div>
+    <!-- Original transfer detail card, kept functionally identical; hidden by default, inline script reveals it -->
+    <div id="active-transfers-card" class="max-w-7xl mx-auto pb-3 hidden">
+      <div id="transfers-container" class="space-y-2"></div>
+    </div>
+  </div>
+
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-    <section class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
-        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Total Items Cached</p>
-        <p class="mt-2 text-3xl font-light tracking-tight text-slate-100">{{ stats.total_files }}</p>
+    <!-- Status strip: condensed horizontal metrics instead of three big cards -->
+    <section class="bg-panel/60 border border-hairline rounded-xl px-5 py-4 flex flex-wrap items-center gap-x-10 gap-y-3">
+      <div>
+        <p class="text-[10px] font-semibold tracking-wider text-dim uppercase">Total Items Cached</p>
+        <p class="mt-0.5 text-2xl font-bold font-mono text-ink">{{ stats.total_files }}</p>
       </div>
-      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
-        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Data Streams Served</p>
-        <p class="mt-2 text-3xl font-light tracking-tight text-slate-100">{{ stats.total_downloads }}</p>
+      <div class="h-8 w-px bg-hairline hidden sm:block"></div>
+      <div>
+        <p class="text-[10px] font-semibold tracking-wider text-dim uppercase">Data Streams Served</p>
+        <p class="mt-0.5 text-2xl font-bold font-mono text-ink">{{ stats.total_downloads }}</p>
       </div>
-      <div class="bg-slate-900/60 border border-slate-900 rounded-xl p-5 shadow-sm">
-        <p class="text-xs font-medium tracking-wider text-slate-400 uppercase">Active Direct Links</p>
-        <p class="mt-2 text-3xl font-light tracking-tight text-emerald-400 font-mono">{{ stats.active_files }}</p>
+      <div class="h-8 w-px bg-hairline hidden sm:block"></div>
+      <div>
+        <p class="text-[10px] font-semibold tracking-wider text-dim uppercase">Active Direct Links</p>
+        <p class="mt-0.5 text-2xl font-bold font-mono text-cyan">{{ stats.active_files }}</p>
       </div>
     </section>
 
-    <div id="active-transfers-card" class="bg-slate-900/40 border border-amber-500/20 rounded-xl overflow-hidden shadow-sm hidden">
-      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3 flex items-center gap-2">
-        <span class="relative flex h-2 w-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-        </span>
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-amber-400">Live Network Pipes</h2>
-      </div>
-      <div id="transfers-container" class="p-4 space-y-3 bg-slate-900/20">
-        </div>
+    <!-- Search: instant client-side filter, no page reload -->
+    <div class="relative">
+      <svg class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1 0 5.4 5.4a7.5 7.5 0 0 0 11.25 11.25z" />
+      </svg>
+      <input id="filename-filter" type="text" placeholder="Filter indices by filename... (instant, no reload)"
+             class="w-full bg-panel/60 border border-hairline rounded-xl pl-11 pr-4 py-3 text-sm placeholder:text-dim/70 focus:outline-none focus:border-cyan/40 text-ink transition-all font-mono">
     </div>
 
-    <form method="get" class="w-full">
-      <div class="relative">
-        <input name="q" value="{{ query }}" placeholder="Filter indices by filename..."
-               class="w-full bg-slate-900/50 border border-slate-900 rounded-xl px-4 py-3 text-sm placeholder:text-slate-600 focus:outline-none focus:border-slate-800 text-slate-200 transition-all font-mono">
+    <!-- Export panel -->
+    <div class="bg-panel/60 border border-hairline rounded-xl overflow-hidden">
+      <div class="border-b border-hairline bg-raised/60 px-4 py-3 flex items-center gap-2">
+        <span class="h-1.5 w-1.5 rounded-full bg-amber"></span>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-dim">Export to Server Folder</h2>
       </div>
-    </form>
-
-    <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
-      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">📤 Export to Server Folder</h2>
-      </div>
-      <form method="post" action="/admin/export" class="p-4 flex flex-wrap items-end gap-3">
+      <form method="post" action="/admin/export" id="export-form" class="p-4 flex flex-wrap items-end gap-3">
         <div class="flex flex-col gap-1">
-          <label class="text-2xs uppercase tracking-wider text-slate-500">Subfolder (under export base)</label>
+          <label class="text-[10px] uppercase tracking-wider text-dim">Subfolder (under export base)</label>
           <input type="text" name="subfolder" placeholder="e.g. severance-season1"
-                 class="w-64 bg-slate-950/60 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono">
+                 class="w-64 bg-void/60 border border-hairline rounded-lg px-3 py-2 text-xs text-ink placeholder:text-dim/60 focus:outline-none focus:border-cyan/40 font-mono">
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-2xs uppercase tracking-wider text-slate-500">Mode</label>
-          <select name="mode" class="bg-slate-950/60 border border-slate-800 rounded px-3 py-2 text-xs text-slate-200 font-mono">
+          <label class="text-[10px] uppercase tracking-wider text-dim">Mode</label>
+          <select name="mode" class="bg-void/60 border border-hairline rounded-lg px-3 py-2 text-xs text-ink font-mono">
             <option value="copy" selected>Copy (keep originals)</option>
             <option value="move">Move (remove from bot)</option>
           </select>
         </div>
-        <button type="submit"
-                onclick="return confirm('Export all files to the chosen server folder?')"
-                class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-4 py-2 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer text-xs font-semibold">
+        <button type="submit" id="export-submit-btn"
+                class="bg-cyan-dim hover:bg-cyan/20 text-cyan px-4 py-2 rounded-lg border border-cyan/30 hover:border-cyan/50 transition-all cursor-pointer text-xs font-bold">
           Export All Files
         </button>
+        <span id="export-selection-hint" class="text-[11px] text-dim font-mono self-center"></span>
       </form>
       {% if request.query_params.get('exported') %}
-        <p class="px-4 pb-3 text-xs font-mono text-emerald-400">
+        <p class="px-4 pb-3 text-xs font-mono text-cyan">
           Exported {{ request.query_params.get('exported') }} file(s), skipped {{ request.query_params.get('skipped') }}.
         </p>
       {% endif %}
       {% if request.query_params.get('error') %}
-        <p class="px-4 pb-3 text-xs font-mono text-rose-400">Export failed: {{ request.query_params.get('error') }}</p>
+        <p class="px-4 pb-3 text-xs font-mono text-rose">Export failed: {{ request.query_params.get('error') }}</p>
       {% endif %}
     </div>
 
-    <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
-      <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
-        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">File Directory Matrix</h2>
+    <!-- File table -->
+    <div class="bg-panel/60 border border-hairline rounded-xl overflow-hidden">
+      <div class="border-b border-hairline bg-raised/60 px-4 py-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-dim">File Directory Matrix</h2>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
-            <tr class="border-b border-slate-900 text-slate-400 text-xs font-semibold uppercase tracking-wider bg-slate-900/20">
+            <tr class="border-b border-hairline text-dim text-[10px] font-semibold uppercase tracking-wider bg-void/30">
+              <th class="px-4 py-3 w-8">
+                <input type="checkbox" id="select-all-checkbox" class="accent-cyan cursor-pointer" title="Select all">
+              </th>
               <th class="px-4 py-3">Filename Index</th>
               <th class="px-4 py-3 font-mono">File ID</th>
               <th class="px-4 py-3 text-right">Data Footprint</th>
@@ -138,64 +187,68 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
               <th class="px-4 py-3 text-right">System Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-900 font-mono text-xs">
+          <tbody class="divide-y divide-hairline font-mono text-xs">
             {% for f in files %}
-            <tr class="hover:bg-slate-900/30 transition-colors text-slate-300">
-              <td class="px-4 py-3.5 max-w-xs font-sans font-medium text-slate-200 truncate" title="{{ f.name }}">{{ f.name }}</td>
-              <td class="px-4 py-3.5 text-slate-500">{{ f.file_id }}</td>
-              <td class="px-4 py-3.5 text-right text-slate-400">
+            <tr class="file-row hover:bg-raised/40 transition-colors text-ink/80" data-name="{{ f.name|lower }}">
+              <td class="px-4 py-3.5">
+                <input type="checkbox" name="file_ids" value="{{ f.file_id }}"
+                       form="export-form" class="export-row-checkbox accent-cyan cursor-pointer">
+              </td>
+              <td class="px-4 py-3.5 max-w-xs font-sans font-medium text-ink truncate" title="{{ f.name }}">{{ f.name }}</td>
+              <td class="px-4 py-3.5 text-dim">{{ f.file_id }}</td>
+              <td class="px-4 py-3.5 text-right text-ink/70">
                 {% if f.file_size %}
                   {{ (f.file_size / 1024 / 1024) | round(2) }} MB
                 {% else %}
                   --
                 {% endif %}
               </td>
-              <td class="px-4 py-3.5 text-right font-semibold text-slate-400">{{ f.downloads }}</td>
+              <td class="px-4 py-3.5 text-right font-semibold text-ink/70">{{ f.downloads }}</td>
               <td class="px-4 py-3.5 text-center">
                 {% if f.missing %}
-                  <span class="inline-flex items-center rounded-md bg-rose-500/10 px-2 py-1 text-2xs font-medium text-rose-400 ring-1 ring-inset ring-rose-500/20" title="Physical file not found on disk">Missing</span>
+                  <span class="inline-flex items-center rounded-md bg-rose-dim px-2 py-1 text-[10px] font-medium text-rose ring-1 ring-inset ring-rose/20" title="Physical file not found on disk">Missing</span>
                 {% elif f.disabled %}
-                  <span class="inline-flex items-center rounded-md bg-sky-500/10 px-2 py-1 text-2xs font-medium text-sky-400 ring-1 ring-inset ring-sky-500/20">Frozen</span>
+                  <span class="inline-flex items-center rounded-md bg-hairline/40 px-2 py-1 text-[10px] font-medium text-dim ring-1 ring-inset ring-hairline">Frozen</span>
                 {% elif f.expires_at %}
-                  <span class="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-1 text-2xs font-medium text-amber-400 ring-1 ring-inset ring-amber-500/20" title="Expires {{ f.expires_at }}">Volatile</span>
+                  <span class="inline-flex items-center rounded-md bg-amber-dim px-2 py-1 text-[10px] font-medium text-amber ring-1 ring-inset ring-amber/20" title="Expires {{ f.expires_at }}">Volatile</span>
                 {% else %}
-                  <span class="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-2xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Persistent</span>
+                  <span class="inline-flex items-center rounded-md bg-cyan-dim px-2 py-1 text-[10px] font-medium text-cyan ring-1 ring-inset ring-cyan/20">Persistent</span>
                 {% endif %}
               </td>
               <td class="px-4 py-3.5 text-right whitespace-nowrap">
                 <div class="flex items-center justify-end gap-1 flex-wrap">
                   {% if not f.missing and not f.disabled %}
                     <a href="/file/{{ f.file_id }}" target="_blank" rel="noopener"
-                       class="bg-slate-800 hover:bg-sky-950 text-slate-400 hover:text-sky-400 px-2.5 py-1 rounded border border-slate-700 hover:border-sky-900/50 transition-all cursor-pointer"
+                       class="bg-raised hover:bg-cyan-dim text-dim hover:text-cyan px-2.5 py-1 rounded border border-hairline hover:border-cyan/30 transition-all cursor-pointer"
                        data-testid="btn-download-{{ f.file_id }}">Download</a>
                   {% endif %}
 
                   {% if not f.missing %}
                     <form method="post" action="/admin/file/{{ f.file_id }}/expiry" class="inline-flex items-center gap-1" data-testid="form-set-expiry-{{ f.file_id }}">
                       <input type="text" name="ttl" placeholder="30 / 2h / 1d / 0"
-                             class="w-28 bg-slate-950/60 border border-slate-800 rounded px-2 py-1 text-2xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                             class="w-28 bg-void/60 border border-hairline rounded px-2 py-1 text-[10px] text-ink placeholder:text-dim/60 focus:outline-none focus:border-cyan/40 font-mono"
                              data-testid="input-ttl-{{ f.file_id }}">
-                      <button class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-2.5 py-1 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer"
+                      <button class="bg-raised hover:bg-cyan-dim text-dim hover:text-cyan px-2.5 py-1 rounded border border-hairline hover:border-cyan/30 transition-all cursor-pointer"
                               data-testid="btn-set-expiry-{{ f.file_id }}">Set TTL</button>
                     </form>
                   {% endif %}
 
                   {% if not f.missing and (f.disabled or f.expires_at) %}
                     <form method="post" action="/admin/file/{{ f.file_id }}/enable" class="inline">
-                      <button class="bg-slate-800 hover:bg-emerald-950 text-slate-400 hover:text-emerald-400 px-2.5 py-1 rounded border border-slate-700 hover:border-emerald-900/50 transition-all cursor-pointer"
+                      <button class="bg-raised hover:bg-cyan-dim text-dim hover:text-cyan px-2.5 py-1 rounded border border-hairline hover:border-cyan/30 transition-all cursor-pointer"
                               data-testid="btn-rescue-{{ f.file_id }}">Rescue</button>
                     </form>
                   {% endif %}
 
                   {% if not f.missing and not f.disabled %}
                     <form method="post" action="/admin/file/{{ f.file_id }}/disable" class="inline">
-                      <button class="bg-slate-800 hover:bg-amber-950 text-slate-400 hover:text-amber-400 px-2.5 py-1 rounded border border-slate-700 hover:border-amber-900/50 transition-all cursor-pointer"
+                      <button class="bg-raised hover:bg-amber-dim text-dim hover:text-amber px-2.5 py-1 rounded border border-hairline hover:border-amber/30 transition-all cursor-pointer"
                               data-testid="btn-freeze-{{ f.file_id }}">Freeze</button>
                     </form>
                   {% endif %}
 
                   <form method="post" action="/admin/file/{{ f.file_id }}/delete" class="inline">
-                    <button class="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded border border-slate-700 hover:border-rose-900/50 transition-all cursor-pointer"
+                    <button class="bg-raised hover:bg-rose-dim text-dim hover:text-rose px-2.5 py-1 rounded border border-hairline hover:border-rose/30 transition-all cursor-pointer"
                             onclick="return confirm('Purge object data registry index permanently?')"
                             data-testid="btn-purge-{{ f.file_id }}">Purge</button>
                   </form>
@@ -205,43 +258,44 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             {% endfor %}
           </tbody>
         </table>
+        <p id="no-results-row" class="hidden px-4 py-6 text-xs font-mono text-dim text-center">No files match that filter.</p>
       </div>
     </div>
 
     <section class="grid grid-cols-1 gap-6 md:grid-cols-3">
 
-      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
-        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">🔥 High Footprint Links</h3>
+      <div class="bg-panel/60 border border-hairline rounded-xl overflow-hidden">
+        <div class="border-b border-hairline bg-raised/60 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-dim">High Footprint Links</h3>
         </div>
-        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-ink/80 divide-y divide-hairline/60">
           {% for f in top_files %}
             <li class="pt-2 first:pt-0 flex justify-between gap-4">
-              <span class="truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</span>
-              <span class="text-slate-500 shrink-0 font-semibold">{{ f.downloads }} hits</span>
+              <span class="truncate font-sans text-ink" title="{{ f.name }}">{{ f.name }}</span>
+              <span class="text-dim shrink-0 font-semibold">{{ f.downloads }} hits</span>
             </li>
           {% endfor %}
         </ul>
       </div>
 
-      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
-        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">🕒 Recent Registries</h3>
+      <div class="bg-panel/60 border border-hairline rounded-xl overflow-hidden">
+        <div class="border-b border-hairline bg-raised/60 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-dim">Recent Registries</h3>
         </div>
-        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-ink/80 divide-y divide-hairline/60">
           {% for f in recent_files %}
-            <li class="pt-2 first:pt-0 block truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</li>
+            <li class="pt-2 first:pt-0 block truncate font-sans text-ink" title="{{ f.name }}">{{ f.name }}</li>
           {% endfor %}
         </ul>
       </div>
 
-      <div class="bg-slate-900/40 border border-slate-900 rounded-xl overflow-hidden shadow-sm">
-        <div class="border-b border-slate-900 bg-slate-900/80 px-4 py-3">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">⏳ Volatile Timeouts</h3>
+      <div class="bg-panel/60 border border-hairline rounded-xl overflow-hidden">
+        <div class="border-b border-hairline bg-raised/60 px-4 py-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-dim">Volatile Timeouts</h3>
         </div>
-        <ul class="p-4 space-y-2.5 text-xs font-mono text-slate-300 divide-y divide-slate-900/50">
+        <ul class="p-4 space-y-2.5 text-xs font-mono text-ink/80 divide-y divide-hairline/60">
           {% for f in expiring_files %}
-            <li class="pt-2 first:pt-0 block truncate font-sans text-slate-200" title="{{ f.name }}">{{ f.name }}</li>
+            <li class="pt-2 first:pt-0 block truncate font-sans text-ink" title="{{ f.name }}">{{ f.name }}</li>
           {% endfor %}
         </ul>
       </div>
@@ -250,6 +304,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   </main>
 
   <script>
+    // Unchanged polling logic/contract — still targets #transfers-container and
+    // #active-transfers-card, still hits /api/progress. Also drives the new signal strip.
     async function updateProgress() {
       try {
         const response = await fetch('/api/progress');
@@ -258,26 +314,34 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         const data = await response.json();
         const container = document.getElementById('transfers-container');
         const card = document.getElementById('active-transfers-card');
+        const dotPing = document.getElementById('signal-ping');
+        const dotCore = document.getElementById('signal-core');
+        const label = document.getElementById('signal-label');
 
         if (!data.tasks || data.tasks.length === 0) {
           card.classList.add('hidden');
+          dotPing.classList.add('hidden');
+          dotCore.className = 'relative inline-flex rounded-full h-2 w-2 bg-dim/40';
+          label.textContent = 'Idle — no active transfers';
           return;
         }
 
         card.classList.remove('hidden');
+        dotPing.classList.remove('hidden');
+        dotCore.className = 'relative inline-flex rounded-full h-2 w-2 bg-amber';
+        label.textContent = `${data.tasks.length} active transfer${data.tasks.length > 1 ? 's' : ''}`;
         container.innerHTML = '';
 
         data.tasks.forEach(task => {
           const taskEl = document.createElement('div');
-          taskEl.className = "space-y-1.5 bg-slate-950/40 p-3 rounded-lg border border-slate-900";
-
+          taskEl.className = "space-y-1.5 bg-void/40 p-3 rounded-lg border border-hairline";
           taskEl.innerHTML = `
             <div class="flex justify-between items-center text-xs font-mono">
-              <span class="text-slate-400 font-semibold">Pipe ID: ${task.file_id}</span>
-              <span class="text-amber-400 font-bold">${task.status} (${task.progress}%)</span>
+              <span class="text-dim font-semibold">Pipe ID: ${task.file_id}</span>
+              <span class="text-amber font-bold">${task.status} (${task.progress}%)</span>
             </div>
-            <div class="bg-slate-900 border border-slate-800 rounded-full h-2.5 w-full overflow-hidden">
-              <div class="bg-amber-500 h-full w-[${task.progress}%] rounded-full transition-all duration-300 ease-in-out" style="width: ${task.progress}%"></div>
+            <div class="bg-void border border-hairline rounded-full h-2 w-full overflow-hidden">
+              <div class="bg-amber h-full rounded-full transition-all duration-300 ease-in-out" style="width: ${task.progress}%"></div>
             </div>
           `;
           container.appendChild(taskEl);
@@ -289,6 +353,73 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
     setInterval(updateProgress, 2000);
     updateProgress();
+  </script>
+
+  <script>
+    // Export selection logic — same form field names/ids as before (file_ids, export-form, etc.)
+    (function () {
+      const selectAll = document.getElementById('select-all-checkbox');
+      const rowCheckboxes = () => Array.from(document.querySelectorAll('.export-row-checkbox'));
+      const submitBtn = document.getElementById('export-submit-btn');
+      const hint = document.getElementById('export-selection-hint');
+      const exportForm = document.getElementById('export-form');
+
+      function refreshUI() {
+        const checked = rowCheckboxes().filter(cb => cb.checked);
+        if (checked.length === 0) {
+          submitBtn.textContent = 'Export All Files';
+          hint.textContent = '';
+        } else {
+          submitBtn.textContent = `Export ${checked.length} Selected File${checked.length > 1 ? 's' : ''}`;
+          hint.textContent = `${checked.length} selected`;
+        }
+        if (selectAll) {
+          selectAll.checked = checked.length > 0 && checked.length === rowCheckboxes().length;
+        }
+      }
+
+      if (selectAll) {
+        selectAll.addEventListener('change', () => {
+          rowCheckboxes().forEach(cb => { cb.checked = selectAll.checked; });
+          refreshUI();
+        });
+      }
+
+      rowCheckboxes().forEach(cb => cb.addEventListener('change', refreshUI));
+
+      if (exportForm) {
+        exportForm.addEventListener('submit', (e) => {
+          const checked = rowCheckboxes().filter(cb => cb.checked).length;
+          const msg = checked === 0
+            ? 'No files selected — export ALL files to the chosen server folder?'
+            : `Export ${checked} selected file(s) to the chosen server folder?`;
+          if (!confirm(msg)) e.preventDefault();
+        });
+      }
+
+      refreshUI();
+    })();
+  </script>
+
+  <script>
+    // New: instant client-side filename filter, no server round trip.
+    (function () {
+      const input = document.getElementById('filename-filter');
+      const rows = Array.from(document.querySelectorAll('.file-row'));
+      const noResults = document.getElementById('no-results-row');
+      if (!input) return;
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        let visibleCount = 0;
+        rows.forEach(row => {
+          const match = !q || row.dataset.name.includes(q);
+          row.classList.toggle('hidden', !match);
+          if (match) visibleCount++;
+        });
+        noResults.classList.toggle('hidden', visibleCount !== 0);
+      });
+    })();
   </script>
 
 </body>

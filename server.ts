@@ -350,9 +350,9 @@ app.post('/api/upload', upload.single('file'), (req: Request, res: Response) => 
 // -------------------------------------------------------------
 
 if (ADMIN_ENABLED) {
-  app.get('/admin', (req: Request, res: Response) => {
-    res.redirect('/admin/');
-  });
+  // NOTE: no separate '/admin' -> '/admin/' redirect here. Express routing is
+  // non-strict, so that route also matched '/admin/' and caused an infinite
+  // redirect loop right after login. The '/admin/' handler below serves both.
 
   app.get('/admin/login', (req: Request, res: Response) => {
     res.render('login.html', { error: null });

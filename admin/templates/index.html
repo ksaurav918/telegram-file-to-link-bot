@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram File Link Gateway</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="min-h-full font-sans antialiased flex flex-col selection:bg-emerald-500/30 selection:text-emerald-400">
+
+  <header class="border-b border-slate-900 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between max-w-7xl mx-auto">
+      <div class="flex items-center gap-2.5">
+        <span class="text-2xl">⚡</span>
+        <div>
+          <h1 class="text-sm font-bold tracking-wider uppercase text-slate-200">File Link Bot Gateway</h1>
+          <p class="text-[10px] text-emerald-400 font-mono">Status: Online & Listening</p>
+        </div>
+      </div>
+      
+      <nav class="flex items-center gap-4">
+        <% if (locals.adminEnabled) { %>
+          <a href="/admin/login" class="text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl border border-emerald-500/50 transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98]">
+            Admin Terminal →
+          </a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center items-center space-y-8">
+    
+    <div class="text-center space-y-3 max-w-2xl">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 font-mono">
+        <span>🤖</span> Telegram File-to-Link Delivery Network
+      </div>
+      <h2 class="text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl">
+        Upload File & Generate Direct Link
+      </h2>
+      <p class="text-sm text-slate-400 leading-relaxed">
+        Drag & drop files or click to convert any media, document, or binary archive into an immediate, rate-limited direct download URL.
+      </p>
+    </div>
+
+    <div class="w-full bg-slate-900/40 border border-slate-900 rounded-2xl p-6 sm:p-8 backdrop-blur-sm shadow-2xl space-y-6">
+      
+      <form id="uploadForm" class="space-y-6">
+        <div id="dropZone" class="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 bg-slate-950/40 rounded-2xl p-8 text-center cursor-pointer transition-all group">
+          <input type="file" id="fileInput" name="file" class="hidden" required>
+          <div class="space-y-3">
+            <div class="h-14 w-14 mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+              📤
+            </div>
+            <div>
+              <p class="text-sm font-medium text-slate-200" id="fileNameText">Click or drag & drop file here</p>
+              <p class="text-xs text-slate-500 mt-1" id="fileSizeText">Max file footprint: 500 MB</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 ml-1">Custom TTL Expiry</label>
+            <input type="text" name="ttl" id="ttlInput" placeholder="Optional: 30 / 2h / 1d" 
+                   class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-emerald-500/50 font-mono">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" id="submitBtn" 
+                    class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98] cursor-pointer disabled:opacity-50">
+              Generate Direct Link
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div id="progressContainer" class="hidden space-y-2">
+        <div class="flex justify-between items-center text-xs font-mono">
+          <span class="text-slate-400 font-semibold" id="progressStatus">Uploading...</span>
+          <span class="text-emerald-400 font-bold" id="progressPercent">0%</span>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-full h-3 w-full overflow-hidden">
+          <div id="progressBar" class="bg-emerald-500 h-full w-0 transition-all duration-200 ease-out"></div>
+        </div>
+      </div>
+
+      <div id="resultContainer" class="hidden p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
+        <div class="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+          <span>✅</span> Direct Link Generated
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="generatedUrl" readonly 
+                 class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none">
+          <button id="copyBtn" onclick="copyUrl()" 
+                  class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer">
+            Copy Link
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full text-center">
+      <div class="p-4 bg-slate-900/20 border border-slate-900 rounded-xl space-y-1">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Storage</p>
+        <p class="text-sm font-semibold text-slate-300">Ephemeral Local & Cloud S3</p>
+      </div>
+      <div class="p-4 bg-slate-900/20 border border-slate-900 rounded-xl space-y-1">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Protection</p>
+        <p class="text-sm font-semibold text-slate-300">IP Global Rate Limiter</p>
+      </div>
+      <div class="p-4 bg-slate-900/20 border border-slate-900 rounded-xl space-y-1">
+        <p class="text-xs text-slate-500 uppercase tracking-wider">Admin</p>
+        <p class="text-sm font-semibold text-slate-300">Terminal & Freeze Controls</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileNameText = document.getElementById('fileNameText');
+    const fileSizeText = document.getElementById('fileSizeText');
+    const uploadForm = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const resultContainer = document.getElementById('resultContainer');
+    const generatedUrl = document.getElementById('generatedUrl');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-emerald-500', 'bg-emerald-500/5');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-emerald-500', 'bg-emerald-500/5');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect();
+      }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+      if (fileInput.files.length) {
+        const file = fileInput.files[0];
+        fileNameText.textContent = file.name;
+        fileSizeText.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+      }
+    }
+
+    uploadForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) return;
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      formData.append('ttl', document.getElementById('ttlInput').value);
+
+      submitBtn.disabled = true;
+      progressContainer.classList.remove('hidden');
+      resultContainer.classList.add('hidden');
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload', true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          progressBar.style.width = `${percent}%`;
+          progressPercent.textContent = `${percent}%`;
+        }
+      };
+
+      xhr.onload = () => {
+        submitBtn.disabled = false;
+        if (xhr.status === 200) {
+          const resp = JSON.parse(xhr.responseText);
+          generatedUrl.value = resp.download_url;
+          resultContainer.classList.remove('hidden');
+        } else {
+          alert('Upload failed: ' + xhr.responseText);
+        }
+      };
+
+      xhr.onerror = () => {
+        submitBtn.disabled = false;
+        alert('Network error during file upload');
+      };
+
+      xhr.send(formData);
+    });
+
+    function copyUrl() {
+      generatedUrl.select();
+      document.execCommand('copy');
+      const copyBtn = document.getElementById('copyBtn');
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => copyBtn.textContent = 'Copy Link', 2000);
+    }
+  </script>
+
+</body>
+</html>

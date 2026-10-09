@@ -46,11 +46,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
       </div>
       
       <div class="p-6">
-        {% if error %}
+        <% if (locals.error) { %>
           <div class="mb-6 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-center">
-            <p class="text-xs font-bold uppercase tracking-tight text-rose-400">{{ error }}</p>
+            <p class="text-xs font-bold uppercase tracking-tight text-rose-400"><%= error %></p>
           </div>
-        {% endif %}
+        <% } %>
 
         <form method="post" class="space-y-4">
           <div>

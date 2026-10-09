@@ -1,0 +1,8 @@
+{
+  "name": "Telegram File Link Bot",
+  "description": "Telegram file to direct link generator with admin terminal, telemetry, and link management",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

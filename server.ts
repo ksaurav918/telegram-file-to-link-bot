@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import { startBot } from './bot.js';
 
 dotenv.config();
 
@@ -18,6 +19,15 @@ const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 // No hardcoded session secret: if unset, use a random one (sessions reset on restart).
 const SESSION_SECRET = (process.env.SESSION_SECRET || '').trim() || crypto.randomBytes(32).toString('hex');
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '500', 10);
+
+// Public URL used in generated download links. Falls back to the request's own
+// host when not set. Accepts "files.example.com" or "https://files.example.com/".
+function normalizeBaseUrl(value: string | undefined): string {
+  const v = (value || '').trim().replace(/\/+$/, '');
+  if (!v) return '';
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+}
+const BASE_URL = normalizeBaseUrl(process.env.BASE_URL);
 const GLOBAL_RATE_LIMIT_REQUESTS = parseInt(process.env.GLOBAL_RATE_LIMIT_REQUESTS || '60', 10);
 const GLOBAL_RATE_LIMIT_WINDOW = parseInt(process.env.GLOBAL_RATE_LIMIT_WINDOW || '10', 10);
 
@@ -233,7 +243,7 @@ function renderError(res: Response, statusCode: number, context: { title: string
 // Home Landing & Direct Upload Hub
 app.get('/', (req: Request, res: Response) => {
   res.render('index.html', {
-    baseUrl: `${req.protocol}://${req.get('host')}`,
+    baseUrl: BASE_URL || `${req.protocol}://${req.get('host')}`,
     adminEnabled: ADMIN_ENABLED
   });
 });
@@ -346,7 +356,7 @@ app.post('/api/upload', upload.single('file'), (req: Request, res: Response) => 
     status: 'Completed'
   });
 
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const baseUrl = BASE_URL || `${req.protocol}://${req.get('host')}`;
   res.json({
     success: true,
     file_id: fileId,
@@ -506,4 +516,29 @@ if (ADMIN_ENABLED) {
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Telegram File Link Bot server running on http://0.0.0.0:${PORT}`);
+});
+
+// Telegram bot (only starts when API_ID, API_HASH and BOT_TOKEN are set).
+// A bot failure must never take the web server down.
+startBot({
+  uploadDir: UPLOAD_DIR,
+  maxFileMb: MAX_FILE_MB,
+  baseUrl: BASE_URL || `http://localhost:${PORT}`,
+  parseTTL,
+  registerFile: file => {
+    filesStore.set(file.file_id, {
+      ...file,
+      downloads: 0,
+      disabled: false,
+      created_at: new Date(),
+    });
+  },
+  setProgress: (fileId, progress, status) => {
+    taskProgressStore.set(fileId, { file_id: fileId, progress, status });
+  },
+  clearProgress: fileId => {
+    taskProgressStore.delete(fileId);
+  },
+}).catch(err => {
+  console.error('[Bot] failed to start:', err);
 });

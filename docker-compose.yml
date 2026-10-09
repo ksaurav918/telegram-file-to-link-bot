@@ -15,12 +15,19 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - SESSION_SECRET=${SESSION_SECRET:-}
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - BASE_URL=${BASE_URL:-}
+      - API_ID=${API_ID:-}
+      - API_HASH=${API_HASH:-}
+      - BOT_TOKEN=${BOT_TOKEN:-}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-}
+      - MAX_CONCURRENT_TRANSFERS=${MAX_CONCURRENT_TRANSFERS:-3}
       - MAX_FILE_MB=${MAX_FILE_MB:-500}
       - GLOBAL_RATE_LIMIT_REQUESTS=${GLOBAL_RATE_LIMIT_REQUESTS:-60}
       - GLOBAL_RATE_LIMIT_WINDOW=${GLOBAL_RATE_LIMIT_WINDOW:-10}
     volumes:
       - uploads_data:/app/uploads
+      - session_data:/app/session
 
 volumes:
   uploads_data:
+  session_data:

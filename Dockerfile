@@ -22,7 +22,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/admin ./admin
 COPY --from=builder /app/static ./static
 
-RUN mkdir -p uploads
+RUN mkdir -p uploads session
 
 EXPOSE 8000
 

@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "outDir": "dist"
   },
-  "include": ["server.ts", "src/**/*"]
+  "include": ["server.ts", "bot.ts", "src/**/*"]
 }

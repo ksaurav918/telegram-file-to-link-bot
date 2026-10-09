@@ -18,7 +18,8 @@ const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').trim();
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
 // No hardcoded session secret: if unset, use a random one (sessions reset on restart).
 const SESSION_SECRET = (process.env.SESSION_SECRET || '').trim() || crypto.randomBytes(32).toString('hex');
-const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '500', 10);
+// Maximum upload size in MB for web and bot uploads. Unset or 0 = no limit.
+const MAX_FILE_MB = Math.max(0, parseInt(process.env.MAX_FILE_MB || '0', 10) || 0);
 
 // Public URL used in generated download links. Falls back to the request's own
 // host when not set. Accepts "files.example.com" or "https://files.example.com/".
@@ -220,7 +221,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: MAX_FILE_MB * 1024 * 1024 }
+  limits: MAX_FILE_MB > 0 ? { fileSize: MAX_FILE_MB * 1024 * 1024 } : undefined
 });
 
 // Middleware for Admin Authorization

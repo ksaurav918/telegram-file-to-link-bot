@@ -44,7 +44,7 @@ The bot only starts when `API_ID`, `API_HASH` and `BOT_TOKEN` are all set. Other
 - Drag-and-drop upload page at `/` with a live progress bar
 - Every upload gets a unique ID and a public link: `https://your-domain.com/file/<id>`
 - The original filename is preserved on download
-- Maximum upload size is configurable (`MAX_FILE_MB`, default 500 MB)
+- No upload size limit by default. Set `MAX_FILE_MB` to cap it (web and bot)
 
 ### ⏳ Expiry (TTL only)
 - Optional expiry per file, set at upload time or later from the dashboard
@@ -100,7 +100,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | `ADMIN_EMAIL` | *(none)* | Admin login email |
 | `ADMIN_PASSWORD` | *(none)* | Admin login password |
 | `SESSION_SECRET` | random per start | Secret used to sign session cookies |
-| `MAX_FILE_MB` | `500` | Maximum upload size in MB (web and bot) |
+| `MAX_FILE_MB` | `0` (no limit) | Maximum upload size in MB for web and bot uploads. `0` or unset means unlimited |
 | `GLOBAL_RATE_LIMIT_REQUESTS` | `60` | Requests allowed per window per IP (`0` disables the limit) |
 | `GLOBAL_RATE_LIMIT_WINDOW` | `10` | Rate-limit window in seconds |
 

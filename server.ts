@@ -11,9 +11,12 @@ dotenv.config();
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const ADMIN_ENABLED = (process.env.ADMIN_ENABLED || 'true').toLowerCase() === 'true';
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@system.local').trim();
-const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').trim();
-const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-key-123';
+// No fallback credentials: if these are missing, no admin account is created
+// and every login attempt is rejected.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').trim();
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || '').trim();
+// No hardcoded session secret: if unset, use a random one (sessions reset on restart).
+const SESSION_SECRET = (process.env.SESSION_SECRET || '').trim() || crypto.randomBytes(32).toString('hex');
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '500', 10);
 const GLOBAL_RATE_LIMIT_REQUESTS = parseInt(process.env.GLOBAL_RATE_LIMIT_REQUESTS || '60', 10);
 const GLOBAL_RATE_LIMIT_WINDOW = parseInt(process.env.GLOBAL_RATE_LIMIT_WINDOW || '10', 10);
@@ -55,13 +58,21 @@ const downloadTracker: Map<string, number> = new Map(); // ip:file_id -> timesta
 const rateLimitTracker: Map<string, { count: number; resetAt: number }> = new Map();
 const taskProgressStore: Map<string, TaskProgress> = new Map();
 
-// Bootstrap Default Admin
-const hashedPassword = bcrypt.hashSync(ADMIN_PASSWORD, 10);
-adminsStore.push({
-  id: 1,
-  email: ADMIN_EMAIL,
-  password_hash: hashedPassword,
-});
+// Bootstrap Admin (only when both ADMIN_EMAIL and ADMIN_PASSWORD are set)
+if (ADMIN_ENABLED) {
+  if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+    adminsStore.push({
+      id: 1,
+      email: ADMIN_EMAIL,
+      password_hash: bcrypt.hashSync(ADMIN_PASSWORD, 10),
+    });
+  } else {
+    console.warn('[Admin] ADMIN_EMAIL and/or ADMIN_PASSWORD not set: no admin account exists, all logins will be rejected.');
+  }
+  if (!process.env.SESSION_SECRET || !process.env.SESSION_SECRET.trim()) {
+    console.warn('[Admin] SESSION_SECRET not set: using a random one, sessions will reset on every restart.');
+  }
+}
 
 // Seed Initial Files so dashboard has rich initial state
 function seedDemoFiles() {

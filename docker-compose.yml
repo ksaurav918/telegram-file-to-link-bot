@@ -12,9 +12,9 @@ services:
     environment:
       - PORT=8000
       - ADMIN_ENABLED=${ADMIN_ENABLED:-true}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@system.local}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      - SESSION_SECRET=${SESSION_SECRET:-dev-secret-key-123}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
       - BASE_URL=${BASE_URL:-http://localhost:3000}
       - MAX_FILE_MB=${MAX_FILE_MB:-500}
       - GLOBAL_RATE_LIMIT_REQUESTS=${GLOBAL_RATE_LIMIT_REQUESTS:-60}

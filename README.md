@@ -1,298 +1,146 @@
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Telegram-blue)
-![Python](https://img.shields.io/badge/python-3.13-blue)
-![Framework](https://img.shields.io/badge/FastAPI-async-green)
-![Deploy](https://img.shields.io/badge/deploy-Railway-purple)
+![Node](https://img.shields.io/badge/node-20-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Framework](https://img.shields.io/badge/Express-4-lightgrey)
 ![Docker](https://img.shields.io/badge/docker-supported-blue)
 
-# 📎 Telegram File Link Bot
+# 📎 File Link Gateway
 
-A self-hosted **Telegram bot** that generates **secure, rate-limited download links** for uploaded files, with **time-based expiration (TTL)**, an **optional admin dashboard**, and **automatic cleanup**.
+A small, self-hosted **file-to-direct-link service**. Upload a file from the web page and get back a **public download link** with optional **time-based expiry**, **per-IP rate limiting**, and an **admin dashboard** to manage every link.
 
-The project can run **locally**, on a **VPS**, or on any cloud platform.  
-For the easiest setup, **Railway is recommended**.
+It is a Node.js / TypeScript (Express) app that runs as a single container, with no database or cache to set up.
 
----
-
-## 🚀 Deployment (Railway – Recommended)
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/telegram-file-to-link-bot?referralCode=nIQTyp&utm_medium=integration&utm_source=template&utm_campaign=generic)
-
-This repository is designed to be deployed **directly as a Railway template**.
-
-### Why Railway?
-- **Free public domain** (`*.railway.app`) included
-- **Automatic HTTPS** (no SSL setup needed)
-- **One-click PostgreSQL & Redis**
-- **Easy environment variable management**
-- **No server maintenance** or manual provisioning
-
-### Steps
-1. Click **Deploy on Railway**
-2. Railway will create a new project from this template
-3. Add PostgreSQL and Redis plugins
-4. Set the required environment variables
-5. Optional: Enable Persistent Storage (Railway Buckets)
-6. Deploy
-
-Your bot and download API will be live within minutes.
-
-> You can still deploy this project locally or on any VPS.
+> **Origin:** forked from the original *Telegram File Link Bot* by Aman (Apache 2.0). The original was a Python / FastAPI Telegram bot backed by PostgreSQL, Redis and S3. **This fork has been rewritten** as a Node.js web app and **does not include the Telegram bot, PostgreSQL, Redis or S3 storage.** See [NOTICE](NOTICE) and [LICENSE](LICENSE).
 
 ---
 
 ## ✨ Features
 
-### 🤖 Telegram Bot
-- Upload files via Telegram and receive a public download link
-- Supports documents, videos, audio, photos, animations, voice, and video notes
-- Preserves original file quality
-- Optional private bot mode (allowed user IDs)
-- Built with Pyrogram / Pyrofork
+### 🔗 Upload & direct links
+- Drag-and-drop upload page at `/` with a live progress bar
+- Every upload gets a unique ID and a public link: `https://your-domain.com/file/<id>`
+- The original filename is preserved on download
+- Maximum upload size is configurable (`MAX_FILE_MB`, default 500 MB)
 
----
+### ⏳ Expiry (TTL only)
+- Optional expiry per file, set at upload time or later from the dashboard
+- Accepted formats: `30` (minutes), `2h` (hours), `1d` (days), `0` (never expires)
+- Expiry is time-based only. There are no download limits
+- Expired files are purged from disk automatically (background check every 30 seconds)
 
-### 🔗 File Links
-- Unique file IDs
-- Direct downloads via FastAPI
-- Correct filenames and headers
-- Supports HTTP range requests (206 Partial Content)
+### 🚦 Rate limiting
+- Global per-IP limit on the download route
+- Returns HTTP `429` with `retry_after` when exceeded
+- Real client IP is read from `CF-Connecting-IP` or `X-Forwarded-For` when present
+- Downloads are counted once per IP per file per hour
 
----
+### 📊 Admin dashboard (optional)
+Enabled with `ADMIN_ENABLED=true`, served at `/admin`.
 
-### ⏳ Expiration (TTL Only)
-- Optional expiration per file
-- Time-based expiration only (no download limits)
-- Unlimited downloads are always allowed
-- Files expire automatically when TTL is reached
-
----
-
-### 🔄 Upload Concurrency Control
-- Limits how many file uploads are processed at the same time
-- Prevents server overload and Telegram flood limits
-- Extra uploads are automatically queued
-- Fully configurable via environment variables
-
----
-
-### ⚙️ Mode System (TTL Control)
-
-TTL is controlled **per user** via Telegram commands.
-
-Examples:
-- `/mode ttl 30` → 30 minutes
-- `/mode ttl 2h` → 2 hours
-- `/mode ttl 1d` → 1 day
-- `/mode ttl 0` or `/mode reset` → Never expire
-
-TTL is stored internally in **seconds**.
-
----
-
-### 📊 Admin Dashboard (Optional)
-
-Enabled only if `ADMIN_ENABLED=true`.
-
-Features:
-- Secure session-based login
-- View total files, downloads, and active files
+- Session-based login (email + password, bcrypt-hashed)
+- Totals: files, downloads, active files
 - Search files by name
-- Disable files (expire immediately)
-- Delete files
-- View top downloads, recent uploads, and expiring files
-- Light / Dark mode toggle
+- Top downloads, recent uploads, and files about to expire
+- Per file: **freeze** (disable the link but keep the file), **rescue** (re-enable and clear expiry), **set expiry**, **delete**
+- Files whose data is missing from disk are flagged
+- Settings page with storage usage
 
-When enabled, the admin dashboard is available at:
-
-```
-https://your-domain.com/admin
-```
-
-> If `ADMIN_ENABLED=false`, the admin dashboard routes are not registered and the bot still works normally.
+If `ADMIN_ENABLED=false`, the admin routes are not registered at all.
 
 ---
 
-## 📸 Screenshots
+## 🔐 Admin credentials
 
-### Admin Dashboard
-![Admin Dashboard](docs/screenshots/admin-dashboard.jpg)
+There are **no default credentials**. The admin account is created at startup **only if both `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set**.
 
-### Telegram Upload
-![Telegram Upload](docs/screenshots/telegram-upload.jpg)
-
----
-
-### 🧹 Automatic Cleanup
-- Background task removes expired files
-- Cleans database records and Redis cache
-- Deletes expired objects from S3-compatible storage automatically
-- Safe against partial failures
+- If either is missing or empty, no admin account exists and **every login is rejected** with "Invalid credentials". A warning is printed in the container log.
+- If `SESSION_SECRET` is missing, a random secret is generated at startup (and a warning is logged). Sessions then reset on every restart. Set a long random value to keep sessions across restarts.
 
 ---
 
-### 🚦 Rate Limiting
-- Global per-IP rate limiting
-- Redis-backed
-- Proper `Retry-After` headers
+## ⚙️ Environment variables
+
+Copy `.env.example` to `.env` and fill in the values.
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` (`8000` in Docker) | Port the server listens on |
+| `ADMIN_ENABLED` | `true` | Turn the admin dashboard on or off |
+| `ADMIN_EMAIL` | *(none)* | Admin login email |
+| `ADMIN_PASSWORD` | *(none)* | Admin login password |
+| `SESSION_SECRET` | random per start | Secret used to sign session cookies |
+| `MAX_FILE_MB` | `500` | Maximum upload size in MB |
+| `GLOBAL_RATE_LIMIT_REQUESTS` | `60` | Requests allowed per window per IP (`0` disables the limit) |
+| `GLOBAL_RATE_LIMIT_WINDOW` | `10` | Rate-limit window in seconds |
 
 ---
 
-## 🗄️ Storage Backends
+## ▶️ Running locally
 
-This project supports **two storage backends**, selectable via environment variables.
+Requires Node.js 20+.
 
-### Local Filesystem (default)
-- Files are stored in the `uploads/` directory
-- Suitable for local development and small deployments
-- Files are removed automatically when TTL expires
-
-### S3-Compatible Object Storage (Recommended for Production)
-- Files are stored in an S3-compatible bucket
-- Supports **Railway Storage Buckets**, AWS S3, Cloudflare R2, and similar services
-- Files are served via **presigned URLs**
-- No service egress for downloads
-- Files persist across deployments
-- Automatic cleanup when TTL expires
-
-On Railway, S3 credentials are injected automatically when you connect a Storage Bucket.
-
-Enable S3 storage by setting:
-```
-STORAGE_BACKEND=s3
+```bash
+npm install
+cp .env.example .env     # then set ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET
+npm run dev              # http://localhost:3000
 ```
 
----
+Production build:
 
-### S3-Compatible Storage (Advanced / Non-Railway)
-
-If you are using S3-compatible storage **outside of Railway**
-(e.g. AWS S3, Cloudflare R2, MinIO, Backblaze B2),
-you must provide the following environment variables:
-
-```env
-AWS_ENDPOINT_URL=https://storage.example.com
-AWS_S3_BUCKET_NAME=your-bucket-name
-AWS_DEFAULT_REGION=auto
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-```
-
----
-
-## 🧱 Tech Stack
-- Python **3.11+** (tested on 3.13)
-- FastAPI
-- Pyrogram / Pyrofork
-- PostgreSQL (asyncpg)
-- Redis
-- Jinja2
-- Vanilla HTML / CSS / JS
-- S3-compatible object storage
-
----
-
-## ⚠️ Database Schema Management
-
-This project automatically creates and maintains its database schema at startup.
-
-Migrations are intentionally omitted to keep the template simple and easy to deploy.  
-For larger or multi-tenant deployments, adding a migration system is recommended.
-
----
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the project root.
-> Tip: Rename `.env.example` to `.env` and fill in your values.
-
-### Telegram Bot
-```
-API_ID=your_api_id
-API_HASH=your_api_hash
-BOT_TOKEN=your_bot_token
-```
-
-### Upload Concurrency
-```
-MAX_CONCURRENT_TRANSFERS=3
-```
-
-### Database & Cache
-```
-DATABASE_URL=postgresql://user:password@localhost:5432/filelink
-REDIS_URL=redis://localhost:6379
-```
-
-### Storage Backend
-Choose where uploaded files are stored.
-
-Local filesystem (default):
-```
-STORAGE_BACKEND=local
-```
-
-S3-compatible storage:
-```
-STORAGE_BACKEND=s3
-```
-> If not set, the bot defaults to local filesystem storage.
-
-### Public URL
-Local development:
-```
-BASE_URL=http://localhost:8000
-```
-
-Railway:
-```
-BASE_URL=${RAILWAY_PUBLIC_DOMAIN}
-```
-
-Custom domain:
-```
-BASE_URL=https://files.example.com
-```
-
-### Rate Limiting
-```
-GLOBAL_RATE_LIMIT_REQUESTS=60
-GLOBAL_RATE_LIMIT_WINDOW=10
-```
-
-### Access Control (Optional)
-```
-ALLOWED_USER_IDS=123456789
-```
-
-### Admin Dashboard (Optional)
-```
-ADMIN_ENABLED=true
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change-me-now
-SESSION_SECRET=change-me
-```
-
----
-
-## ▶️ Running Locally
-
-```
-pip install -r requirements.txt
-uvicorn app.main:app --reload --log-level warning
+```bash
+npm run build
+npm start
 ```
 
 ---
 
 ## 🐳 Running with Docker
 
+```bash
+docker build -t file-link-gateway .
+docker run -d --env-file .env -p 8000:8000 -v uploads_data:/app/uploads file-link-gateway
 ```
-docker build -t telegram-file-link-bot .
-docker run -d --env-file .env -p 8000:8000 telegram-file-link-bot
+
+### Docker Compose
+
+The included `docker-compose.yml` builds the image and exposes port `8000` to a reverse proxy. Uploaded files are stored in the `uploads_data` volume.
+
+> **Important:** a variable in `.env` is **not** automatically passed into the container. Compose only uses `.env` to fill in `${...}` references, so every setting must appear under `environment:` (as `ADMIN_EMAIL=${ADMIN_EMAIL}`) or be loaded with `env_file`.
+
+### Deploying with Dokploy (or similar)
+
+1. Create a Compose app that builds from this repository (`build: https://github.com/<you>/<repo>.git#main`).
+2. Add the variables from the table above in the platform's environment settings, and reference them in the compose `environment:` list.
+3. **Save** the compose file, then **Deploy**. A plain restart keeps the old container configuration.
+4. Point your domain at port `8000` of the `app` service.
+
+To check what the container actually received:
+
+```bash
+docker exec <container> printenv | grep -E "ADMIN|SESSION"
 ```
+
+---
+
+## 🧱 Tech stack
+- Node.js 20, TypeScript
+- Express, express-session
+- Multer (uploads), bcryptjs (password hashing)
+- EJS-rendered admin templates, Tailwind via CDN, vanilla JS
+- Docker (multi-stage build)
+
+---
+
+## ⚠️ Limitations
+
+- **Everything is in memory.** File records (names, expiry, download counts) and admin sessions are lost on restart. Uploaded files stay in `uploads/` on disk, but their links stop working and nothing re-registers them. Run a **single instance** only.
+- **Sample records.** On every start, three sample entries are added to the dashboard (two small files are written to `uploads/`).
+- **Uploads are public.** `/` and `POST /api/upload` have no authentication. Anyone who can reach the site can upload. Restrict access at your reverse proxy if that is not what you want.
+- **Local disk storage only.** There is no S3 or object-storage backend.
+- **No Telegram bot** in this codebase.
 
 ---
 
 ## 📜 License
 
-Apache License 2.0
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

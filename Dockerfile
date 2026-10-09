@@ -13,7 +13,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8000
 
 COPY package*.json ./
 RUN npm install --omit=dev
@@ -24,6 +24,6 @@ COPY --from=builder /app/static ./static
 
 RUN mkdir -p uploads
 
-EXPOSE 3000
+EXPOSE 8000
 
 CMD ["node", "dist/server.cjs"]

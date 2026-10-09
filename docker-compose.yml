@@ -7,10 +7,10 @@ services:
       dockerfile: Dockerfile
     container_name: telegram-file-link-bot
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "8000"
     environment:
-      - PORT=3000
+      - PORT=8000
       - ADMIN_ENABLED=${ADMIN_ENABLED:-true}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@system.local}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
